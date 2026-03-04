@@ -158,7 +158,6 @@ def api_status():
 # ── Main ─────────────────────────────────────────────────
 
 if __name__ == "__main__":
-    db.init_db()
     app.run(
         host=config.FLASK_HOST,
         port=config.FLASK_PORT,

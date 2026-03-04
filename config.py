@@ -25,7 +25,15 @@ MAX_COMMENT_LENGTH = 500
 SENTIMENT_BATCH_SIZE = 25  # comments per LLM call
 
 # ── Database ──────────────────────────────────────────────
-DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "buzz_analyzer.db")
+# When running on Render with a persistent disk, we use the mount path
+_disk_path = os.environ.get("RENDER_DISK_PATH")
+if _disk_path:
+    DB_PATH = os.path.join(_disk_path, "buzz_analyzer.db")
+else:
+    DB_PATH = os.environ.get(
+        "DATABASE_PATH", 
+        os.path.join(os.path.dirname(os.path.abspath(__file__)), "buzz_analyzer.db")
+    )
 
 # ── Flask ─────────────────────────────────────────────────
 FLASK_HOST = "0.0.0.0"

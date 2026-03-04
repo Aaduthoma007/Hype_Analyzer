@@ -66,4 +66,18 @@ python app.py
 
 ---
 
+## ☁️ Deployment (Render)
+
+Project Mayhem is fully configured for automated deployment on [Render](https://render.com).
+
+1. Connect your GitHub repository to Render.
+2. Render will automatically detect the `render.yaml` Blueprint.
+3. Approve the creation of the **Web Service** and the **Persistent Disk** (required to keep your Buzz Score Leaderboard intact across restarts).
+4. In the Render Dashboard, go to your new Web Service's **Environment** tab and add your API Keys:
+   * `YOUTUBE_API_KEY`
+   * `GEMINI_API_KEY`
+5. The system will deploy automatically.
+
+---
+
 *“This is your data, and it's ending one comment at a time.”*
