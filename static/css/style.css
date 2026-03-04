@@ -357,6 +357,85 @@ body::before {
     }
 }
 
+/* ── Progress Bar ──────────────────────────────────────── */
+.progress-container {
+    width: 100%;
+    margin-top: 1rem;
+    padding: 1rem 1.5rem;
+    background: var(--bg-card);
+    border: 1px solid var(--border-rust);
+    border-left: 3px solid var(--ember);
+    opacity: 1;
+    transition: opacity 0.5s ease;
+}
+
+.progress-container.hidden {
+    opacity: 0;
+    pointer-events: none;
+    position: absolute;
+    visibility: hidden;
+}
+
+.progress-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.6rem;
+    font-family: 'Source Code Pro', monospace;
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 2px;
+}
+
+#progressPct {
+    color: var(--text-primary);
+    font-weight: bold;
+}
+
+.progress-track {
+    width: 100%;
+    height: 8px;
+    background: rgba(0, 0, 0, 0.6);
+    border: 1px solid var(--border-faint);
+    position: relative;
+    overflow: hidden;
+}
+
+.progress-fill {
+    height: 100%;
+    background: var(--blood-red);
+    width: 0%;
+    transition: width 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    box-shadow: 0 0 10px rgba(196, 30, 30, 0.5);
+    position: relative;
+}
+
+.progress-fill::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: repeating-linear-gradient(45deg,
+            transparent,
+            transparent 10px,
+            rgba(0, 0, 0, 0.2) 10px,
+            rgba(0, 0, 0, 0.2) 20px);
+    animation: moveStripes 2s linear infinite;
+}
+
+@keyframes moveStripes {
+    0% {
+        background-position: 0 0;
+    }
+
+    100% {
+        background-position: 40px 0;
+    }
+}
+
 /* ── Fight Club Rule ───────────────────────────────────── */
 .rule-divider {
     position: relative;
@@ -1019,6 +1098,112 @@ body::before {
 
 .gauge-number {
     animation: glitch 8s ease-in-out infinite;
+}
+
+/* ── Subliminal Flash Loading State ────────────────────── */
+.subliminal-flash {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: var(--bg-black);
+    color: var(--blood-red);
+    z-index: 99999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 5rem;
+    letter-spacing: 5px;
+    padding: 2rem;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.05s;
+}
+
+.subliminal-flash.hidden {
+    display: none;
+}
+
+.subliminal-flash.active {
+    display: flex;
+    /* Keeps background transparent mostly, flashes content */
+    background: transparent;
+}
+
+/* The actual flash animation */
+.subliminal-flash.flash-now {
+    opacity: 1;
+    background: var(--bg-black);
+    /* Obscure everything */
+    animation: hardcoreGlitch 0.2s cubic-bezier(.25, .46, .45, .94) both;
+}
+
+.subliminal-text {
+    text-transform: uppercase;
+    text-shadow:
+        2px 0 var(--bone),
+        -2px 0 var(--ash);
+    filter: drop-shadow(0 0 20px rgba(196, 30, 30, 0.8));
+    animation: textJitter 0.1s infinite;
+}
+
+@keyframes hardcoreGlitch {
+    0% {
+        filter: invert(0);
+        mix-blend-mode: normal;
+        transform: scale(1);
+    }
+
+    20% {
+        filter: invert(1) hue-rotate(90deg);
+        transform: scale(1.05) skew(2deg);
+    }
+
+    40% {
+        filter: invert(0);
+        transform: scale(0.95) skew(-2deg);
+    }
+
+    60% {
+        filter: invert(1);
+        transform: scale(1) translate(10px, -10px);
+    }
+
+    80% {
+        filter: invert(0);
+        transform: scale(1.02) translate(-10px, 10px);
+    }
+
+    100% {
+        filter: invert(0);
+        mix-blend-mode: normal;
+        transform: scale(1);
+    }
+}
+
+@keyframes textJitter {
+    0% {
+        transform: translate(0)
+    }
+
+    25% {
+        transform: translate(2px, -2px)
+    }
+
+    50% {
+        transform: translate(-2px, 2px)
+    }
+
+    75% {
+        transform: translate(-2px, -2px)
+    }
+
+    100% {
+        transform: translate(2px, 2px)
+    }
 }
 
 /* ── Footer Rule ───────────────────────────────────────── */

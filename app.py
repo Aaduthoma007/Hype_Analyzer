@@ -107,11 +107,26 @@ def api_run():
     if task_id in _agent_tasks and _agent_tasks[task_id].get("status") == "running":
         return jsonify({"error": "Analysis already in progress for this movie"}), 409
 
-    _agent_tasks[task_id] = {"status": "running", "movie_title": movie_title}
+    _agent_tasks[task_id] = {
+        "status": "running", 
+        "movie_title": movie_title,
+        "progress": 0,
+        "message": "Initializing Project Mayhem..."
+    }
+
+    def _progress_callback(pct, msg):
+        if task_id in _agent_tasks:
+            _agent_tasks[task_id]["progress"] = pct
+            _agent_tasks[task_id]["message"] = msg
 
     def _run():
         try:
-            result = run_agent(movie_title, video_id, auto_approve=True)
+            result = run_agent(
+                movie_title, 
+                video_id, 
+                auto_approve=True, 
+                progress_callback=_progress_callback
+            )
             _agent_tasks[task_id] = {
                 "status": "completed",
                 "movie_title": movie_title,

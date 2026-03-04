@@ -11,6 +11,10 @@ let sentimentChart = null;
 let refreshInterval = null;
 let currentMovieId = null;
 
+// Flash State
+let isFlashing = false;
+let flashTimeout = null;
+
 // Fight Club quotes for the rotating quote bar
 const TYLER_QUOTES = [
     '"You are not your movie opinion. You are not your Rotten Tomatoes score. You are the all-singing, all-dancing <span>BUZZ SCORE</span> of the world."',
@@ -22,6 +26,16 @@ const TYLER_QUOTES = [
     '"The things you <span>stream</span> end up streaming you."',
     '"I am Jack\'s <span>complete sentiment analysis</span>."',
     '"Without pain, without sacrifice, <span>we would have nothing</span>. Like a movie with zero buzz."',
+];
+
+const FLASH_QUOTES = [
+    "TRUST THE DATA.",
+    "IT'S ONLY AFTER WE'VE LOST EVERYTHING...",
+    "I AM JACK'S WASTED TIME.",
+    "THIS IS YOUR BUZZ SCORE.",
+    "PROJECT MAYHEM ON STANDBY.",
+    "DO NOT FABRICATE.",
+    "WAKE UP."
 ];
 
 // ── API Helpers ──────────────────────────────────────────
@@ -64,6 +78,53 @@ function rotateQuote() {
     bar.innerHTML = quote;
 }
 
+// ── Subliminal Flash ─────────────────────────────────────
+
+function startSubliminalFlashes() {
+    isFlashing = true;
+    const flashContainer = document.getElementById('subliminalFlash');
+    flashContainer.classList.remove('hidden');
+    flashContainer.classList.add('active');
+    triggerNextFlash();
+}
+
+function stopSubliminalFlashes() {
+    isFlashing = false;
+    clearTimeout(flashTimeout);
+    const flashContainer = document.getElementById('subliminalFlash');
+    flashContainer.classList.add('hidden');
+    flashContainer.classList.remove('active', 'flash-now');
+}
+
+function triggerNextFlash() {
+    if (!isFlashing) return;
+
+    // Random wait between 8 to 15 seconds between flashes
+    const nextWait = Math.random() * 7000 + 8000;
+
+    flashTimeout = setTimeout(() => {
+        if (!isFlashing) return;
+
+        const flashContainer = document.getElementById('subliminalFlash');
+
+        // Pick random quote
+        const quote = FLASH_QUOTES[Math.floor(Math.random() * FLASH_QUOTES.length)];
+        flashContainer.innerHTML = `<span class="subliminal-text">${quote}</span>`;
+
+        // Trigger CSS animation
+        flashContainer.classList.add('flash-now');
+
+        // Play click sound optionally? No, keep it visual for now
+
+        // Remove class quickly (flash duration is ~200ms in CSS, we'll strip class after 250ms)
+        setTimeout(() => {
+            flashContainer.classList.remove('flash-now');
+            triggerNextFlash(); // queue next flash
+        }, 250);
+
+    }, nextWait);
+}
+
 // ── Start Analysis ───────────────────────────────────────
 
 async function startAnalysis() {
@@ -80,6 +141,16 @@ async function startAnalysis() {
     btn.disabled = true;
     document.getElementById('statusText').textContent = 'Hunting...';
 
+    // Show Progress Bar & Reset
+    const progressContainer = document.getElementById('progressContainer');
+    progressContainer.classList.remove('hidden');
+    document.getElementById('progressPct').textContent = '0%';
+    document.getElementById('progressMessage').textContent = 'STANDING BY...';
+    document.getElementById('progressFill').style.width = '0%';
+
+    // Start Fight Club flashes
+    startSubliminalFlashes();
+
     try {
         const result = await apiPost('/api/run', {
             movie_title: title,
@@ -88,6 +159,7 @@ async function startAnalysis() {
 
         if (result.error) {
             showToast(result.error, 'error');
+            stopSubliminalFlashes();
             return;
         }
 
@@ -96,6 +168,7 @@ async function startAnalysis() {
 
     } catch (err) {
         showToast('Mission failed: ' + err.message, 'error');
+        stopSubliminalFlashes();
     } finally {
         setTimeout(() => {
             btn.classList.remove('loading');
@@ -110,13 +183,37 @@ function startPolling() {
         try {
             const status = await apiFetch('/api/status');
             const tasks = status.tasks || {};
-            const running = Object.values(tasks).some(t => t.status === 'running');
+            let isRunning = false;
 
-            if (!running) {
+            // Check current task progress
+            for (const key in tasks) {
+                const t = tasks[key];
+                if (t.status === 'running') {
+                    isRunning = true;
+                    if (t.progress !== undefined) {
+                        document.getElementById('progressPct').textContent = `${t.progress}%`;
+                        document.getElementById('progressFill').style.width = `${t.progress}%`;
+                    }
+                    if (t.message) {
+                        document.getElementById('progressMessage').textContent = t.message;
+                    }
+                }
+            }
+
+            if (!isRunning) {
                 clearInterval(refreshInterval);
                 refreshInterval = null;
                 document.getElementById('statusText').textContent = 'Standing By';
+
+                // Finalize Progress Bar
+                document.getElementById('progressPct').textContent = '100%';
+                document.getElementById('progressFill').style.width = '100%';
+                setTimeout(() => {
+                    document.getElementById('progressContainer').classList.add('hidden');
+                }, 1000);
+
                 showToast('Analysis complete. The score has been set.', 'success');
+                stopSubliminalFlashes(); // Stop effect when done!
                 loadDashboard();
             }
         } catch (e) {

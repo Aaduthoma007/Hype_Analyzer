@@ -188,7 +188,7 @@ def step_6_hitl_and_commit(movie_title, trailer_url, comments, buzz_data, auto_a
     return True
 
 
-def run_agent(movie_title, video_id=None, auto_approve=False):
+def run_agent(movie_title, video_id=None, auto_approve=False, progress_callback=None):
     """
     Main agent execution loop.
     Orchestrates the full pipeline from data collection to DB commit.
@@ -200,6 +200,9 @@ def run_agent(movie_title, video_id=None, auto_approve=False):
     # Initialize database
     db.init_db()
 
+    if progress_callback:
+        progress_callback(10, "Searching for trailer...")
+
     # Step 0: Find trailer video if needed
     video_id = step_0_find_trailer(movie_title, video_id)
     if not video_id:
@@ -209,11 +212,17 @@ def run_agent(movie_title, video_id=None, auto_approve=False):
     print(f"🔗 Video ID: {video_id}")
     trailer_url = f"https://www.youtube.com/watch?v={video_id}"
 
+    if progress_callback:
+        progress_callback(25, "Extracting YouTube comments...")
+
     # Step 1: Collect YouTube comments
     raw_comments = step_1_collect_youtube(video_id)
     if not raw_comments:
         print("\n❌ Agent terminated: Failed to collect YouTube comments.")
         return None
+
+    if progress_callback:
+        progress_callback(40, "Harvesting social metrics...")
 
     # Step 2: Collect social mention metrics
     mention_data = step_2_collect_social(movie_title)
@@ -221,11 +230,17 @@ def run_agent(movie_title, video_id=None, auto_approve=False):
         print("\n❌ Agent terminated: Failed to collect social metrics.")
         return None
 
+    if progress_callback:
+        progress_callback(50, "Cleaning and filtering data...")
+
     # Step 3: Preprocess comments
     processed = step_3_preprocess(raw_comments)
     if len(processed) < config.MIN_COMMENTS:
         print(f"\n⚠️  Warning: Only {len(processed)} valid comments (minimum: {config.MIN_COMMENTS})")
         print("   Proceeding with available data...")
+
+    if progress_callback:
+        progress_callback(60, "Forcing Gemini to analyze sentiment (this takes a minute)...")
 
     # Step 4: Sentiment analysis
     result = step_4_evaluate_sentiment(processed)
@@ -234,8 +249,14 @@ def run_agent(movie_title, video_id=None, auto_approve=False):
         return None
     processed, scores = result
 
+    if progress_callback:
+        progress_callback(85, "Calculating the final Buzz Score...")
+
     # Step 5: Calculate Buzz Score
     buzz_data = step_5_calculate_buzz(scores, mention_data)
+
+    if progress_callback:
+        progress_callback(95, "Committing verdict to the database...")
 
     # Step 6: HITL checkpoint and DB commit
     success = step_6_hitl_and_commit(
@@ -243,6 +264,8 @@ def run_agent(movie_title, video_id=None, auto_approve=False):
     )
 
     if success:
+        if progress_callback:
+            progress_callback(100, "Analysis complete.")
         print("\n" + "=" * 60)
         print("   ✅ AGENT EXECUTION COMPLETE")
         print(f"   🏆 Final Buzz Score: {buzz_data['score']:.1f} / 100")

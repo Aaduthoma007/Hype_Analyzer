@@ -14,6 +14,9 @@
 <body>
     <div class="bg-gradient"></div>
 
+    <!-- ── Subliminal Flash Container ────────────────── -->
+    <div id="subliminalFlash" class="subliminal-flash hidden"></div>
+
     <!-- ── Header ────────────────────────────────────── -->
     <header class="header">
         <div class="header-content">
@@ -52,6 +55,17 @@
                 <span class="spinner"></span>
                 <span class="btn-text">INITIATE</span>
             </button>
+        </div>
+
+        <!-- Progress Bar Container -->
+        <div class="progress-container hidden" id="progressContainer">
+            <div class="progress-header">
+                <span id="progressMessage">STANDING BY...</span>
+                <span id="progressPct">0%</span>
+            </div>
+            <div class="progress-track">
+                <div class="progress-fill" id="progressFill" style="width: 0%"></div>
+            </div>
         </div>
     </section>
 
