@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description"
+        content="Movie Buzz Analyzer — Fight Club Edition. AI-powered movie hype sentiment analysis.">
+    <title>BUZZ ANALYZER | Fight Club Edition</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+</head>
+
+<body>
+    <div class="bg-gradient"></div>
+
+    <!-- ── Header ────────────────────────────────────── -->
+    <header class="header">
+        <div class="header-content">
+            <div class="logo">
+                <div class="logo-icon">👊</div>
+                <div>
+                    <span class="logo-text">Buzz Analyzer</span>
+                    <span class="logo-sub">The first rule: trust the data</span>
+                </div>
+            </div>
+            <div class="header-badge">
+                <span class="dot" id="statusDot"></span>
+                <span id="statusText">Standing By</span>
+            </div>
+        </div>
+    </header>
+
+    <!-- ── Tyler Quote ───────────────────────────────── -->
+    <div class="quote-bar" id="quoteBar">
+        "<span>You are not</span> your movie opinion. <span>You are not</span> your Rotten Tomatoes score. You are the
+        all-singing, all-dancing <span>BUZZ SCORE</span> of the world."
+    </div>
+
+    <!-- ── Analysis Form ─────────────────────────────── -->
+    <section class="analysis-form">
+        <div class="form-card card" style="animation: none;">
+            <div class="form-group">
+                <label>Target Movie</label>
+                <input type="text" id="movieTitle" placeholder="name your target..." />
+            </div>
+            <div class="form-group">
+                <label>YouTube Video ID</label>
+                <input type="text" id="videoId" placeholder="video id or 'auto' to hunt" />
+            </div>
+            <button class="btn-analyze" id="btnAnalyze" onclick="startAnalysis()">
+                <span class="spinner"></span>
+                <span class="btn-text">INITIATE</span>
+            </button>
+        </div>
+    </section>
+
+    <!-- ── Rule Divider ──────────────────────────────── -->
+    <div class="rule-divider">
+        <div class="rule-line">Intelligence Report</div>
+    </div>
+
+    <!-- ── Main Dashboard ────────────────────────────── -->
+    <main class="main-content">
+        <div class="dashboard-grid" id="dashboardContent">
+
+            <!-- Empty State -->
+            <div class="empty-state card" id="emptyState">
+                <div class="icon">🎬</div>
+                <h3>No Targets Analyzed</h3>
+                <p>"The things you own end up owning you." — Enter a movie title above and let the machine do its work.
+                </p>
+                <div class="rule-number">1st Rule of Buzz Club: You do not talk about the Buzz Score until it's
+                    calculated</div>
+            </div>
+
+        </div>
+    </main>
+
+    <!-- ── Footer ────────────────────────────────────── -->
+    <footer class="footer-rule" id="footerRule">
+        "I am Jack's complete lack of surprise." — Project Mayhem Analytics Division
+    </footer>
+
+    <!-- ── Toast ─────────────────────────────────────── -->
+    <div class="toast" id="toast">
+        <span id="toastIcon">⚡</span>
+        <span id="toastMsg"></span>
+    </div>
+
+    <script src="/static/js/dashboard.js"></script>
+</body>
+
+</html>

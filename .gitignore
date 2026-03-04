@@ -1,0 +1,40 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Environment
+.env
+.venv/
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# SQLite
+*.db
+*.sqlite
+*.sqlite3
+
+# Logs and test outputs
+*.log
+agent_output.txt
+live_test_output.txt
+manjummel_output.txt
+test_results.txt
+
+# Testing
+.pytest_cache/
+htmlcov/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
