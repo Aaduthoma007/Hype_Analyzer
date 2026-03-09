@@ -212,7 +212,7 @@ async function startAnalysis() {
         });
 
         activeTaskId = result.task_id || null;
-        showToast(`Target acquired: "${title}"`, 'info');
+        showToast(`Target acquired: \"${title}\"`, 'info');
         startPolling(activeTaskId);
 
     } catch (err) {
@@ -232,7 +232,6 @@ function startPolling(taskId) {
 
     if (!taskId) {
         showToast('Missing task reference. Unable to track progress.', 'error');
-        setStatusBadge('Mission Failed', 'failed');
         stopSubliminalFlashes();
         return;
     }
@@ -249,12 +248,17 @@ function startPolling(taskId) {
             if (task.message) {
                 document.getElementById('progressMessage').textContent = task.message;
             }
+            if (task.message) {
+                document.getElementById('progressMessage').textContent = task.message;
+            }
+
+            if (task.status === 'running') return;
 
             if (task.status === 'running') return;
 
             clearInterval(refreshInterval);
             refreshInterval = null;
-            setStatusBadge('Standing By', 'idle');
+            document.getElementById('statusText').textContent = 'Standing By';
 
             // Finalize Progress Bar
             document.getElementById('progressPct').textContent = '100%';
@@ -265,10 +269,8 @@ function startPolling(taskId) {
 
             if (task.status === 'failed') {
                 showToast(`Analysis failed: ${task.error || 'unknown error'}`, 'error');
-                setStatusBadge('Mission Failed', 'failed');
             } else {
                 showToast('Analysis complete. The score has been set.', 'success');
-                setStatusBadge('Standing By', 'success');
                 loadDashboard();
             }
             stopSubliminalFlashes();
@@ -277,7 +279,6 @@ function startPolling(taskId) {
             clearInterval(refreshInterval);
             refreshInterval = null;
             showToast(`Polling failed: ${e.message}`, 'error');
-            setStatusBadge('Mission Failed', 'failed');
             stopSubliminalFlashes();
             activeTaskId = null;
         }

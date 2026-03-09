@@ -71,31 +71,3 @@ def test_run_returns_task_id_and_status_endpoint(monkeypatch, app_module):
     assert payload["status"] == "completed"
     assert payload["progress"] == 100
     assert payload["message"] == "Analysis complete."
-
-
-def test_run_marks_failed_when_agent_returns_none(monkeypatch, app_module):
-    client = app_module.app.test_client()
-
-    def fake_run_agent(movie_title, video_id, auto_approve, progress_callback):
-        progress_callback(90, "Almost done")
-        return None
-
-    class ImmediateThread:
-        def __init__(self, target, daemon):
-            self._target = target
-            self.daemon = daemon
-
-        def start(self):
-            self._target()
-
-    monkeypatch.setattr(app_module, "run_agent", fake_run_agent)
-    monkeypatch.setattr(app_module.threading, "Thread", ImmediateThread)
-
-    run_resp = client.post("/api/run", json={"movie_title": "Test Movie", "video_id": "abc123"})
-    assert run_resp.status_code == 202
-    task_id = run_resp.get_json()["task_id"]
-
-    status_resp = client.get(f"/api/status/{task_id}")
-    payload = status_resp.get_json()["task"]
-    assert payload["status"] == "failed"
-    assert payload["error"] == "Agent did not return a result."

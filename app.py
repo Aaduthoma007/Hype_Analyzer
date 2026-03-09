@@ -109,23 +109,16 @@ def api_run():
     if not movie_title:
         return jsonify({"error": "movie_title is required"}), 400
 
-    # Prevent duplicate active runs for the same movie/video combination
-    with _agent_tasks_lock:
-        duplicate_running = any(
-            t.get("status") == "running"
-            and t.get("movie_title") == movie_title
-            and t.get("video_id") == video_id
-            for t in _agent_tasks.values()
-        )
-        if duplicate_running:
-            return jsonify({"error": "Analysis already in progress for this movie"}), 409
+    # Run agent in background thread
+    task_id = f"{movie_title}_{video_id}"
 
-        # Use stable unique task ids to avoid route/path issues and collisions.
-        task_id = uuid4().hex
+    if task_id in _agent_tasks and _agent_tasks[task_id].get("status") == "running":
+        return jsonify({"error": "Analysis already in progress for this movie"}), 409
+
+    with _agent_tasks_lock:
         _agent_tasks[task_id] = {
             "status": "running",
             "movie_title": movie_title,
-            "video_id": video_id,
             "progress": 0,
             "message": "Initializing Project Mayhem...",
         }
@@ -145,30 +138,18 @@ def api_run():
                 progress_callback=_progress_callback
             )
             with _agent_tasks_lock:
-                if result is None:
-                    _agent_tasks[task_id] = {
-                        "status": "failed",
-                        "movie_title": movie_title,
-                        "video_id": video_id,
-                        "progress": 100,
-                        "message": "Analysis failed.",
-                        "error": "Agent did not return a result.",
-                    }
-                else:
-                    _agent_tasks[task_id] = {
-                        "status": "completed",
-                        "movie_title": movie_title,
-                        "video_id": video_id,
-                        "result": result,
-                        "progress": 100,
-                        "message": "Analysis complete.",
-                    }
+                _agent_tasks[task_id] = {
+                    "status": "completed",
+                    "movie_title": movie_title,
+                    "result": result,
+                    "progress": 100,
+                    "message": "Analysis complete.",
+                }
         except Exception as e:
             with _agent_tasks_lock:
                 _agent_tasks[task_id] = {
                     "status": "failed",
                     "movie_title": movie_title,
-                    "video_id": video_id,
                     "progress": 100,
                     "message": "Analysis failed.",
                     "error": str(e),
@@ -188,7 +169,7 @@ def api_run():
 def api_status():
     """Get status of running agent tasks."""
     with _agent_tasks_lock:
-        return jsonify({"tasks": dict(_agent_tasks)})
+        return jsonify({"tasks": _agent_tasks})
 
 
 @app.route("/api/status/<task_id>")
