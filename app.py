@@ -3,6 +3,7 @@ Movie Buzz Analyzer — Flask Backend
 Serves the API endpoints and the dashboard frontend.
 """
 import threading
+from uuid import uuid4
 from flask import Flask, render_template, jsonify, request
 
 import config

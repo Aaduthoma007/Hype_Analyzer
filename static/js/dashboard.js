@@ -15,6 +15,13 @@ let activeTaskId = null;
 // Flash State
 let isFlashing = false;
 let flashTimeout = null;
+let glitchIntensity = 'normal';
+
+const FLASH_CONFIG = {
+    subtle: { firstDelay: 1300, minWait: 12000, maxWait: 18000 },
+    normal: { firstDelay: 900, minWait: 8000, maxWait: 15000 },
+    hardcore: { firstDelay: 350, minWait: 3000, maxWait: 7000 },
+};
 
 // Fight Club quotes for the rotating quote bar
 const TYLER_QUOTES = [
@@ -72,6 +79,22 @@ function showToast(msg, type = 'info') {
     setTimeout(() => toast.classList.remove('show'), 4000);
 }
 
+
+function setStatusBadge(label, state = 'idle') {
+    const statusText = document.getElementById('statusText');
+    const statusDot = document.getElementById('statusDot');
+    if (!statusText || !statusDot) return;
+
+    statusText.textContent = label;
+    const colors = {
+        idle: 'var(--blood-red)',
+        running: 'var(--ember)',
+        success: 'var(--blood-red)',
+        failed: 'var(--ash)',
+    };
+    statusDot.style.background = colors[state] || colors.idle;
+}
+
 // ── Quote Rotation ───────────────────────────────────────
 
 function rotateQuote() {
@@ -83,12 +106,38 @@ function rotateQuote() {
 
 // ── Subliminal Flash ─────────────────────────────────────
 
+
+function loadGlitchIntensityPreference() {
+    const saved = localStorage.getItem('glitchIntensity');
+    if (saved && FLASH_CONFIG[saved]) {
+        glitchIntensity = saved;
+    }
+
+    const select = document.getElementById('glitchIntensity');
+    if (select) select.value = glitchIntensity;
+}
+
+function setGlitchIntensity(value) {
+    if (!FLASH_CONFIG[value]) return;
+    glitchIntensity = value;
+    localStorage.setItem('glitchIntensity', value);
+
+    const flashContainer = document.getElementById('subliminalFlash');
+    if (!flashContainer) return;
+
+    flashContainer.classList.remove('intensity-subtle', 'intensity-normal', 'intensity-hardcore');
+    flashContainer.classList.add(`intensity-${glitchIntensity}`);
+}
+
 function startSubliminalFlashes() {
     isFlashing = true;
     const flashContainer = document.getElementById('subliminalFlash');
     flashContainer.classList.remove('hidden');
     flashContainer.classList.add('active');
-    triggerNextFlash();
+    setGlitchIntensity(glitchIntensity);
+
+    const config = FLASH_CONFIG[glitchIntensity] || FLASH_CONFIG.normal;
+    triggerNextFlash(config.firstDelay);
 }
 
 function stopSubliminalFlashes() {
@@ -99,11 +148,13 @@ function stopSubliminalFlashes() {
     flashContainer.classList.remove('active', 'flash-now');
 }
 
-function triggerNextFlash() {
+function triggerNextFlash(delayMs = null) {
     if (!isFlashing) return;
 
-    // Random wait between 8 to 15 seconds between flashes
-    const nextWait = Math.random() * 7000 + 8000;
+    const config = FLASH_CONFIG[glitchIntensity] || FLASH_CONFIG.normal;
+    const nextWait = typeof delayMs === "number"
+        ? delayMs
+        : (Math.random() * (config.maxWait - config.minWait) + config.minWait);
 
     flashTimeout = setTimeout(() => {
         if (!isFlashing) return;
@@ -142,7 +193,7 @@ async function startAnalysis() {
     const btn = document.getElementById('btnAnalyze');
     btn.classList.add('loading');
     btn.disabled = true;
-    document.getElementById('statusText').textContent = 'Hunting...';
+    setStatusBadge('Hunting...', 'running');
 
     // Show Progress Bar & Reset
     const progressContainer = document.getElementById('progressContainer');
@@ -166,6 +217,7 @@ async function startAnalysis() {
 
     } catch (err) {
         showToast('Mission failed: ' + err.message, 'error');
+        setStatusBadge('Mission Failed', 'failed');
         stopSubliminalFlashes();
     } finally {
         setTimeout(() => {
@@ -196,6 +248,11 @@ function startPolling(taskId) {
             if (task.message) {
                 document.getElementById('progressMessage').textContent = task.message;
             }
+            if (task.message) {
+                document.getElementById('progressMessage').textContent = task.message;
+            }
+
+            if (task.status === 'running') return;
 
             if (task.status === 'running') return;
 
@@ -530,10 +587,18 @@ function escapeHtml(str) {
 // ── Init ─────────────────────────────────────────────────
 
 document.addEventListener('DOMContentLoaded', () => {
+    setStatusBadge('Standing By', 'idle');
+    loadGlitchIntensityPreference();
+    setGlitchIntensity(glitchIntensity);
     loadDashboard();
 
     // Rotate quotes every 12 seconds
     setInterval(rotateQuote, 12000);
+
+    const intensitySelect = document.getElementById('glitchIntensity');
+    if (intensitySelect) {
+        intensitySelect.addEventListener('change', (e) => setGlitchIntensity(e.target.value));
+    }
 
     // Keyboard shortcuts
     document.getElementById('videoId').addEventListener('keydown', (e) => {
