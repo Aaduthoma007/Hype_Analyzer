@@ -4,7 +4,6 @@
 
 An autonomous AI agent designed to aggressively strip away the marketing noise and uncover the **raw, unfiltered truth** about upcoming movies. It hooks into the YouTube API, scrapes social mechanic data, and forces a Gemini LLM through a highly rigid, 3-tier grading rubric to synthesize the ultimate metric: **The Buzz Score**.
 
-![Industrial Progress Bar](https://github.com/Aaduthoma007/Hype_Analyzer/assets/placeholder-progress.png) *(Note: Replace with standard repo image)*
 
 ## 🔪 The Rules of Buzz Club
 
