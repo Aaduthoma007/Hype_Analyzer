@@ -2,7 +2,6 @@
 Movie Buzz Analyzer — Flask Backend
 Serves the API endpoints and the dashboard frontend.
 """
-import json
 import threading
 from flask import Flask, render_template, jsonify, request
 
@@ -14,6 +13,8 @@ app = Flask(__name__)
 
 # Track running agent tasks
 _agent_tasks = {}
+_agent_tasks_lock = threading.Lock()
+MAX_PAGE_SIZE = 200
 
 
 # ── Initialize DB on startup ────────────────────────────
@@ -66,6 +67,12 @@ def api_comments():
     if not movie_id:
         return jsonify({"error": "movie_id parameter required"}), 400
 
+    if limit < 1 or limit > MAX_PAGE_SIZE:
+        return jsonify({"error": f"limit must be between 1 and {MAX_PAGE_SIZE}"}), 400
+
+    if offset < 0:
+        return jsonify({"error": "offset must be >= 0"}), 400
+
     result = db.get_comments(movie_id, limit=limit, offset=offset)
     return jsonify(result)
 
@@ -95,7 +102,7 @@ def api_run():
     if not data:
         return jsonify({"error": "JSON body required"}), 400
 
-    movie_title = data.get("movie_title")
+    movie_title = (data.get("movie_title") or "").strip()
     video_id = data.get("video_id", "auto")
 
     if not movie_title:
@@ -107,17 +114,19 @@ def api_run():
     if task_id in _agent_tasks and _agent_tasks[task_id].get("status") == "running":
         return jsonify({"error": "Analysis already in progress for this movie"}), 409
 
-    _agent_tasks[task_id] = {
-        "status": "running", 
-        "movie_title": movie_title,
-        "progress": 0,
-        "message": "Initializing Project Mayhem..."
-    }
+    with _agent_tasks_lock:
+        _agent_tasks[task_id] = {
+            "status": "running",
+            "movie_title": movie_title,
+            "progress": 0,
+            "message": "Initializing Project Mayhem...",
+        }
 
     def _progress_callback(pct, msg):
-        if task_id in _agent_tasks:
-            _agent_tasks[task_id]["progress"] = pct
-            _agent_tasks[task_id]["message"] = msg
+        with _agent_tasks_lock:
+            if task_id in _agent_tasks:
+                _agent_tasks[task_id]["progress"] = pct
+                _agent_tasks[task_id]["message"] = msg
 
     def _run():
         try:
@@ -127,17 +136,23 @@ def api_run():
                 auto_approve=True, 
                 progress_callback=_progress_callback
             )
-            _agent_tasks[task_id] = {
-                "status": "completed",
-                "movie_title": movie_title,
-                "result": result,
-            }
+            with _agent_tasks_lock:
+                _agent_tasks[task_id] = {
+                    "status": "completed",
+                    "movie_title": movie_title,
+                    "result": result,
+                    "progress": 100,
+                    "message": "Analysis complete.",
+                }
         except Exception as e:
-            _agent_tasks[task_id] = {
-                "status": "failed",
-                "movie_title": movie_title,
-                "error": str(e),
-            }
+            with _agent_tasks_lock:
+                _agent_tasks[task_id] = {
+                    "status": "failed",
+                    "movie_title": movie_title,
+                    "progress": 100,
+                    "message": "Analysis failed.",
+                    "error": str(e),
+                }
 
     thread = threading.Thread(target=_run, daemon=True)
     thread.start()
@@ -152,7 +167,20 @@ def api_run():
 @app.route("/api/status")
 def api_status():
     """Get status of running agent tasks."""
-    return jsonify({"tasks": _agent_tasks})
+    with _agent_tasks_lock:
+        return jsonify({"tasks": _agent_tasks})
+
+
+@app.route("/api/status/<task_id>")
+def api_status_task(task_id):
+    """Get status for a specific agent task."""
+    with _agent_tasks_lock:
+        task = _agent_tasks.get(task_id)
+
+    if not task:
+        return jsonify({"error": "Task not found"}), 404
+
+    return jsonify({"task": task, "task_id": task_id})
 
 
 # ── Main ─────────────────────────────────────────────────
