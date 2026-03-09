@@ -10,6 +10,7 @@
 let sentimentChart = null;
 let refreshInterval = null;
 let currentMovieId = null;
+let activeTaskId = null;
 
 // Flash State
 let isFlashing = false;
@@ -52,7 +53,9 @@ async function apiPost(endpoint, body) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
     });
-    return res.json();
+    const payload = await res.json();
+    if (!res.ok) throw new Error(payload.error || `API error: ${res.status}`);
+    return payload;
 }
 
 // ── Toast ────────────────────────────────────────────────
@@ -157,14 +160,9 @@ async function startAnalysis() {
             video_id: videoId,
         });
 
-        if (result.error) {
-            showToast(result.error, 'error');
-            stopSubliminalFlashes();
-            return;
-        }
-
-        showToast(`Target acquired: "${title}"`, 'info');
-        startPolling();
+        activeTaskId = result.task_id || null;
+        showToast(`Target acquired: \"${title}\"`, 'info');
+        startPolling(activeTaskId);
 
     } catch (err) {
         showToast('Mission failed: ' + err.message, 'error');
@@ -177,47 +175,55 @@ async function startAnalysis() {
     }
 }
 
-function startPolling() {
+function startPolling(taskId) {
     if (refreshInterval) clearInterval(refreshInterval);
+
+    if (!taskId) {
+        showToast('Missing task reference. Unable to track progress.', 'error');
+        stopSubliminalFlashes();
+        return;
+    }
+
     refreshInterval = setInterval(async () => {
         try {
-            const status = await apiFetch('/api/status');
-            const tasks = status.tasks || {};
-            let isRunning = false;
+            const status = await apiFetch(`/api/status/${encodeURIComponent(taskId)}`);
+            const task = status.task || {};
 
-            // Check current task progress
-            for (const key in tasks) {
-                const t = tasks[key];
-                if (t.status === 'running') {
-                    isRunning = true;
-                    if (t.progress !== undefined) {
-                        document.getElementById('progressPct').textContent = `${t.progress}%`;
-                        document.getElementById('progressFill').style.width = `${t.progress}%`;
-                    }
-                    if (t.message) {
-                        document.getElementById('progressMessage').textContent = t.message;
-                    }
-                }
+            if (task.progress !== undefined) {
+                document.getElementById('progressPct').textContent = `${task.progress}%`;
+                document.getElementById('progressFill').style.width = `${task.progress}%`;
+            }
+            if (task.message) {
+                document.getElementById('progressMessage').textContent = task.message;
             }
 
-            if (!isRunning) {
-                clearInterval(refreshInterval);
-                refreshInterval = null;
-                document.getElementById('statusText').textContent = 'Standing By';
+            if (task.status === 'running') return;
 
-                // Finalize Progress Bar
-                document.getElementById('progressPct').textContent = '100%';
-                document.getElementById('progressFill').style.width = '100%';
-                setTimeout(() => {
-                    document.getElementById('progressContainer').classList.add('hidden');
-                }, 1000);
+            clearInterval(refreshInterval);
+            refreshInterval = null;
+            document.getElementById('statusText').textContent = 'Standing By';
 
+            // Finalize Progress Bar
+            document.getElementById('progressPct').textContent = '100%';
+            document.getElementById('progressFill').style.width = '100%';
+            setTimeout(() => {
+                document.getElementById('progressContainer').classList.add('hidden');
+            }, 1000);
+
+            if (task.status === 'failed') {
+                showToast(`Analysis failed: ${task.error || 'unknown error'}`, 'error');
+            } else {
                 showToast('Analysis complete. The score has been set.', 'success');
-                stopSubliminalFlashes(); // Stop effect when done!
                 loadDashboard();
             }
+            stopSubliminalFlashes();
+            activeTaskId = null;
         } catch (e) {
-            // continue
+            clearInterval(refreshInterval);
+            refreshInterval = null;
+            showToast(`Polling failed: ${e.message}`, 'error');
+            stopSubliminalFlashes();
+            activeTaskId = null;
         }
     }, 3000);
 }
