@@ -10,10 +10,18 @@
 let sentimentChart = null;
 let refreshInterval = null;
 let currentMovieId = null;
+let activeTaskId = null;
 
 // Flash State
 let isFlashing = false;
 let flashTimeout = null;
+let glitchIntensity = 'normal';
+
+const FLASH_CONFIG = {
+    subtle: { firstDelay: 1300, minWait: 12000, maxWait: 18000 },
+    normal: { firstDelay: 900, minWait: 8000, maxWait: 15000 },
+    hardcore: { firstDelay: 350, minWait: 3000, maxWait: 7000 },
+};
 
 // Fight Club quotes for the rotating quote bar
 const TYLER_QUOTES = [
@@ -52,7 +60,9 @@ async function apiPost(endpoint, body) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
     });
-    return res.json();
+    const payload = await res.json();
+    if (!res.ok) throw new Error(payload.error || `API error: ${res.status}`);
+    return payload;
 }
 
 // ── Toast ────────────────────────────────────────────────
@@ -69,6 +79,22 @@ function showToast(msg, type = 'info') {
     setTimeout(() => toast.classList.remove('show'), 4000);
 }
 
+
+function setStatusBadge(label, state = 'idle') {
+    const statusText = document.getElementById('statusText');
+    const statusDot = document.getElementById('statusDot');
+    if (!statusText || !statusDot) return;
+
+    statusText.textContent = label;
+    const colors = {
+        idle: 'var(--blood-red)',
+        running: 'var(--ember)',
+        success: 'var(--blood-red)',
+        failed: 'var(--ash)',
+    };
+    statusDot.style.background = colors[state] || colors.idle;
+}
+
 // ── Quote Rotation ───────────────────────────────────────
 
 function rotateQuote() {
@@ -80,12 +106,38 @@ function rotateQuote() {
 
 // ── Subliminal Flash ─────────────────────────────────────
 
+
+function loadGlitchIntensityPreference() {
+    const saved = localStorage.getItem('glitchIntensity');
+    if (saved && FLASH_CONFIG[saved]) {
+        glitchIntensity = saved;
+    }
+
+    const select = document.getElementById('glitchIntensity');
+    if (select) select.value = glitchIntensity;
+}
+
+function setGlitchIntensity(value) {
+    if (!FLASH_CONFIG[value]) return;
+    glitchIntensity = value;
+    localStorage.setItem('glitchIntensity', value);
+
+    const flashContainer = document.getElementById('subliminalFlash');
+    if (!flashContainer) return;
+
+    flashContainer.classList.remove('intensity-subtle', 'intensity-normal', 'intensity-hardcore');
+    flashContainer.classList.add(`intensity-${glitchIntensity}`);
+}
+
 function startSubliminalFlashes() {
     isFlashing = true;
     const flashContainer = document.getElementById('subliminalFlash');
     flashContainer.classList.remove('hidden');
     flashContainer.classList.add('active');
-    triggerNextFlash();
+    setGlitchIntensity(glitchIntensity);
+
+    const config = FLASH_CONFIG[glitchIntensity] || FLASH_CONFIG.normal;
+    triggerNextFlash(config.firstDelay);
 }
 
 function stopSubliminalFlashes() {
@@ -96,11 +148,13 @@ function stopSubliminalFlashes() {
     flashContainer.classList.remove('active', 'flash-now');
 }
 
-function triggerNextFlash() {
+function triggerNextFlash(delayMs = null) {
     if (!isFlashing) return;
 
-    // Random wait between 8 to 15 seconds between flashes
-    const nextWait = Math.random() * 7000 + 8000;
+    const config = FLASH_CONFIG[glitchIntensity] || FLASH_CONFIG.normal;
+    const nextWait = typeof delayMs === "number"
+        ? delayMs
+        : (Math.random() * (config.maxWait - config.minWait) + config.minWait);
 
     flashTimeout = setTimeout(() => {
         if (!isFlashing) return;
@@ -139,7 +193,7 @@ async function startAnalysis() {
     const btn = document.getElementById('btnAnalyze');
     btn.classList.add('loading');
     btn.disabled = true;
-    document.getElementById('statusText').textContent = 'Hunting...';
+    setStatusBadge('Hunting...', 'running');
 
     // Show Progress Bar & Reset
     const progressContainer = document.getElementById('progressContainer');
@@ -157,17 +211,13 @@ async function startAnalysis() {
             video_id: videoId,
         });
 
-        if (result.error) {
-            showToast(result.error, 'error');
-            stopSubliminalFlashes();
-            return;
-        }
-
+        activeTaskId = result.task_id || null;
         showToast(`Target acquired: "${title}"`, 'info');
-        startPolling();
+        startPolling(activeTaskId);
 
     } catch (err) {
         showToast('Mission failed: ' + err.message, 'error');
+        setStatusBadge('Mission Failed', 'failed');
         stopSubliminalFlashes();
     } finally {
         setTimeout(() => {
@@ -177,47 +227,59 @@ async function startAnalysis() {
     }
 }
 
-function startPolling() {
+function startPolling(taskId) {
     if (refreshInterval) clearInterval(refreshInterval);
+
+    if (!taskId) {
+        showToast('Missing task reference. Unable to track progress.', 'error');
+        setStatusBadge('Mission Failed', 'failed');
+        stopSubliminalFlashes();
+        return;
+    }
+
     refreshInterval = setInterval(async () => {
         try {
-            const status = await apiFetch('/api/status');
-            const tasks = status.tasks || {};
-            let isRunning = false;
+            const status = await apiFetch(`/api/status/${encodeURIComponent(taskId)}`);
+            const task = status.task || {};
 
-            // Check current task progress
-            for (const key in tasks) {
-                const t = tasks[key];
-                if (t.status === 'running') {
-                    isRunning = true;
-                    if (t.progress !== undefined) {
-                        document.getElementById('progressPct').textContent = `${t.progress}%`;
-                        document.getElementById('progressFill').style.width = `${t.progress}%`;
-                    }
-                    if (t.message) {
-                        document.getElementById('progressMessage').textContent = t.message;
-                    }
-                }
+            if (task.progress !== undefined) {
+                document.getElementById('progressPct').textContent = `${task.progress}%`;
+                document.getElementById('progressFill').style.width = `${task.progress}%`;
+            }
+            if (task.message) {
+                document.getElementById('progressMessage').textContent = task.message;
             }
 
-            if (!isRunning) {
-                clearInterval(refreshInterval);
-                refreshInterval = null;
-                document.getElementById('statusText').textContent = 'Standing By';
+            if (task.status === 'running') return;
 
-                // Finalize Progress Bar
-                document.getElementById('progressPct').textContent = '100%';
-                document.getElementById('progressFill').style.width = '100%';
-                setTimeout(() => {
-                    document.getElementById('progressContainer').classList.add('hidden');
-                }, 1000);
+            clearInterval(refreshInterval);
+            refreshInterval = null;
+            setStatusBadge('Standing By', 'idle');
 
+            // Finalize Progress Bar
+            document.getElementById('progressPct').textContent = '100%';
+            document.getElementById('progressFill').style.width = '100%';
+            setTimeout(() => {
+                document.getElementById('progressContainer').classList.add('hidden');
+            }, 1000);
+
+            if (task.status === 'failed') {
+                showToast(`Analysis failed: ${task.error || 'unknown error'}`, 'error');
+                setStatusBadge('Mission Failed', 'failed');
+            } else {
                 showToast('Analysis complete. The score has been set.', 'success');
-                stopSubliminalFlashes(); // Stop effect when done!
+                setStatusBadge('Standing By', 'success');
                 loadDashboard();
             }
+            stopSubliminalFlashes();
+            activeTaskId = null;
         } catch (e) {
-            // continue
+            clearInterval(refreshInterval);
+            refreshInterval = null;
+            showToast(`Polling failed: ${e.message}`, 'error');
+            setStatusBadge('Mission Failed', 'failed');
+            stopSubliminalFlashes();
+            activeTaskId = null;
         }
     }, 3000);
 }
@@ -524,10 +586,18 @@ function escapeHtml(str) {
 // ── Init ─────────────────────────────────────────────────
 
 document.addEventListener('DOMContentLoaded', () => {
+    setStatusBadge('Standing By', 'idle');
+    loadGlitchIntensityPreference();
+    setGlitchIntensity(glitchIntensity);
     loadDashboard();
 
     // Rotate quotes every 12 seconds
     setInterval(rotateQuote, 12000);
+
+    const intensitySelect = document.getElementById('glitchIntensity');
+    if (intensitySelect) {
+        intensitySelect.addEventListener('change', (e) => setGlitchIntensity(e.target.value));
+    }
 
     // Keyboard shortcuts
     document.getElementById('videoId').addEventListener('keydown', (e) => {
