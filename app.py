@@ -109,6 +109,11 @@ def api_run():
     if not movie_title:
         return jsonify({"error": "movie_title is required"}), 400
 
+    # Check if movie already exists in DB
+    existing_movies = db.get_all_movies()
+    if any(m.get("title", "").strip().lower() == movie_title.strip().lower() for m in existing_movies):
+        return jsonify({"error": f"Target '{movie_title}' has already been processed."}), 409
+
     # Run agent in background thread
     task_id = f"{movie_title}_{video_id}"
 

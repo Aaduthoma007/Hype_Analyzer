@@ -96,7 +96,7 @@ def _is_valid_comment(text):
     return True
 
 
-def _fetch_youtube_comments(video_id, max_results=600):
+def _fetch_youtube_comments(video_id, max_results=200):
     """Fetch comments from YouTube Data API v3."""
     from googleapiclient.discovery import build
     from googleapiclient.errors import HttpError

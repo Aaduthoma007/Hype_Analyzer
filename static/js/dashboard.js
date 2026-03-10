@@ -136,8 +136,7 @@ function startSubliminalFlashes() {
     flashContainer.classList.add('active');
     setGlitchIntensity(glitchIntensity);
 
-    const config = FLASH_CONFIG[glitchIntensity] || FLASH_CONFIG.normal;
-    triggerNextFlash(config.firstDelay);
+    triggerNextFlash(100); // Override config delay for immediate feedback
 }
 
 function stopSubliminalFlashes() {
@@ -152,9 +151,8 @@ function triggerNextFlash(delayMs = null) {
     if (!isFlashing) return;
 
     const config = FLASH_CONFIG[glitchIntensity] || FLASH_CONFIG.normal;
-    const nextWait = typeof delayMs === "number"
-        ? delayMs
-        : (Math.random() * (config.maxWait - config.minWait) + config.minWait);
+    // Fast glitch for rapid operations (1s to 2.5s)
+    const nextWait = typeof delayMs === "number" ? delayMs : (Math.random() * 1500 + 1000);
 
     flashTimeout = setTimeout(() => {
         if (!isFlashing) return;
@@ -191,8 +189,10 @@ async function startAnalysis() {
     }
 
     const btn = document.getElementById('btnAnalyze');
-    btn.classList.add('loading');
-    btn.disabled = true;
+    if (btn) {
+        btn.classList.add('loading');
+        btn.disabled = true;
+    }
     setStatusBadge('Hunting...', 'running');
 
     // Show Progress Bar & Reset
@@ -221,8 +221,10 @@ async function startAnalysis() {
         stopSubliminalFlashes();
     } finally {
         setTimeout(() => {
-            btn.classList.remove('loading');
-            btn.disabled = false;
+            if (btn) {
+                btn.classList.remove('loading');
+                btn.disabled = false;
+            }
         }, 2000);
     }
 }
@@ -271,7 +273,7 @@ function startPolling(taskId) {
                 showToast(`Analysis failed: ${task.error || 'unknown error'}`, 'error');
             } else {
                 showToast('Analysis complete. The score has been set.', 'success');
-                loadDashboard();
+                loadDashboard(task.movie_title);
             }
             stopSubliminalFlashes();
             activeTaskId = null;
@@ -287,7 +289,7 @@ function startPolling(taskId) {
 
 // ── Dashboard Rendering ──────────────────────────────────
 
-async function loadDashboard() {
+async function loadDashboard(targetTitle = null) {
     try {
         const leaderboard = await apiFetch('/api/leaderboard');
         const entries = leaderboard.leaderboard || [];
@@ -297,9 +299,18 @@ async function loadDashboard() {
             return;
         }
 
-        const topMovie = entries[0];
-        currentMovieId = topMovie.movie_id;
-        renderDashboard(topMovie, entries);
+        let activeMovie = entries[0];
+
+        // If a specific movie was requested (e.g., just finished analyzing)
+        if (targetTitle) {
+            const found = entries.find(m => m.title.toLowerCase() === targetTitle.toLowerCase());
+            if (found) {
+                activeMovie = found;
+            }
+        }
+
+        currentMovieId = activeMovie.movie_id;
+        renderDashboard(activeMovie, entries);
 
     } catch (err) {
         console.error('Dashboard load error:', err);

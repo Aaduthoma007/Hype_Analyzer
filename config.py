@@ -20,9 +20,9 @@ W_GROWTH = 0.20
 W_ENGAGEMENT = 0.20
 
 # ── Data Constraints ─────────────────────────────────────
-MIN_COMMENTS = 500
+MIN_COMMENTS = 100
 MAX_COMMENT_LENGTH = 500
-SENTIMENT_BATCH_SIZE = 25  # comments per LLM call
+SENTIMENT_BATCH_SIZE = 100  # comments per LLM call
 
 # ── Database ──────────────────────────────────────────────
 # When running on Render with a persistent disk, we use the mount path

@@ -57,6 +57,11 @@
     --radius-sm: 1px;
 }
 
+/* ── Utilities ─────────────────────────────────────────── */
+.hidden {
+    display: none !important;
+}
+
 body {
     font-family: 'Oswald', 'Arial Narrow', sans-serif;
     background: var(--bg-black);
@@ -1234,6 +1239,7 @@ body::before {
         transform: translate(2px, 2px)
     }
 }
+
 
 /* ── Footer Rule ───────────────────────────────────────── */
 .footer-rule {
